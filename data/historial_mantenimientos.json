@@ -1,0 +1,62 @@
+[
+  {
+    "moto_id": "moto_001",
+    "tipo": "cambio_aceite",
+    "fecha": "2025-06-10",
+    "kilometraje": 6000
+  },
+  {
+    "moto_id": "moto_001",
+    "tipo": "cambio_frenos",
+    "fecha": "2025-05-02",
+    "kilometraje": 5200
+  },
+  {
+    "moto_id": "moto_001",
+    "tipo": "cambio_filtro",
+    "fecha": "2025-06-10",
+    "kilometraje": 6000
+  },
+  {
+    "moto_id": "moto_002",
+    "tipo": "cambio_cadena",
+    "fecha": "2025-07-15",
+    "kilometraje": 14000
+  },
+  {
+    "moto_id": "moto_002",
+    "tipo": "cambio_filtro",
+    "fecha": "2025-04-20",
+    "kilometraje": 12500
+  },
+  {
+    "moto_id": "moto_002",
+    "tipo": "cambio_llantas",
+    "fecha": "2025-01-10",
+    "kilometraje": 9000
+  },
+  {
+    "moto_id": "moto_003",
+    "tipo": "cambio_aceite",
+    "fecha": "2025-08-01",
+    "kilometraje": 2000
+  },
+  {
+    "moto_id": "moto_004",
+    "tipo": "cambio_aceite",
+    "fecha": "2025-03-15",
+    "kilometraje": 19000
+  },
+  {
+    "moto_id": "moto_004",
+    "tipo": "cambio_cadena",
+    "fecha": "2025-02-01",
+    "kilometraje": 18000
+  },
+  {
+    "moto_id": "moto_004",
+    "tipo": "cambio_llantas",
+    "fecha": "2024-11-20",
+    "kilometraje": 16000
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "moto_001",
+    "marca": "Yamaha",
+    "modelo": "MT-03",
+    "año": 2022,
+    "cilindraje": 321,
+    "kilometraje_actual": 8500
+  },
+  {
+    "id": "moto_002",
+    "marca": "Honda",
+    "modelo": "CB190R",
+    "año": 2021,
+    "cilindraje": 184,
+    "kilometraje_actual": 15300
+  },
+  {
+    "id": "moto_003",
+    "marca": "AKT",
+    "modelo": "NKD 125",
+    "año": 2023,
+    "cilindraje": 125,
+    "kilometraje_actual": 3200
+  },
+  {
+    "id": "moto_004",
+    "marca": "Kawasaki",
+    "modelo": "Ninja 400",
+    "año": 2020,
+    "cilindraje": 399,
+    "kilometraje_actual": 22750
+  }
+]
