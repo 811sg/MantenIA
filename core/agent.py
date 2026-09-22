@@ -1,20 +1,21 @@
-"""Integración del asistente MantenIA con la API de Gemini.
+"""Núcleo del Asistente MantenIA v2 con LangChain.
 
-Este módulo configura el cliente de Gemini y proporciona las funciones
-necesarias para construir el contexto del asistente y generar respuestas
-a partir de los mensajes del usuario.
-
-El asistente utiliza información de la motocicleta, memoria reciente de
-la conversación y herramientas externas para responder consultas sobre
-mantenimiento.
+Decide si una solicitud se resuelve mediante una Chain determinista o
+mediante un Agent con múltiples Tools.
 """
 
 from typing import TypedDict
 
-from google import genai
-from google.genai import types
+from langchain.agents import create_agent
+from langchain_google_genai import ChatGoogleGenerativeAI
 
+from chains.response_chain import crear_respuesta_chain
+from chains.router_chain import crear_router_chain
 from config.settings import GEMINI_API_KEY, GEMINI_MODEL
+from prompts.mantenimiento_prompt import AGENT_SYSTEM_TEMPLATE
+from tools.alertas_tool import consultar_alertas, priorizar_alertas
+from tools.documentos_tool import consultar_documentos_vehiculo
+from tools.fecha_tool import obtener_fecha
 from tools.moto_tool import (
     consultar_historial,
     consultar_moto,
@@ -23,117 +24,127 @@ from tools.moto_tool import (
 
 
 class Moto(TypedDict):
-    """Representa la información básica de la motocicleta del usuario."""
-
     marca: str
     modelo: str
     kilometraje_actual: str
 
 
-# Cliente utilizado para realizar solicitudes a la API de Gemini.
-client = genai.Client(api_key=GEMINI_API_KEY)
+TOOLS = [
+    obtener_fecha,
+    consultar_moto,
+    consultar_historial,
+    consultar_recomendaciones,
+    consultar_documentos_vehiculo,
+    consultar_alertas,
+    priorizar_alertas,
+]
 
 
-def construir_contexto(moto: Moto, memoria: str) -> str:
-    """Construye las instrucciones de contexto para el asistente MantenIA.
+def _crear_modelo() -> ChatGoogleGenerativeAI:
+    return ChatGoogleGenerativeAI(
+        model=GEMINI_MODEL,
+        api_key=GEMINI_API_KEY,
+        temperature=0.1,
+    )
 
-    Combina la información actual de la motocicleta con la memoria
-    reciente de la conversación y las instrucciones que determinan el
-    comportamiento del modelo.
 
-    El contexto también indica cuándo deben utilizarse las herramientas
-    ``consultar_moto``, ``consultar_historial`` y
-    ``consultar_recomendaciones``, y establece las restricciones que el
-    agente debe respetar.
+def _construir_system_prompt(
+    moto: Moto,
+    memoria: str,
+) -> str:
+    return AGENT_SYSTEM_TEMPLATE.format(
+        marca=moto["marca"],
+        modelo=moto["modelo"],
+        kilometraje_actual=moto["kilometraje_actual"],
+        memoria=memoria or "Sin memoria reciente.",
+    )
 
-    Args:
-        moto: Información actual de la motocicleta del usuario.
-        memoria: Representación textual de los mensajes recientes de la
-            conversación.
 
-    Returns:
-        Instrucción de sistema que se enviará al modelo Gemini como contexto.
-    """
-    return f"""
-Eres MantenIA, un asistente experto en mantenimiento de motocicletas.
+def _extraer_texto_final(result: dict) -> str:
+    """Extrae el contenido textual del último mensaje del Agent."""
+    mensajes = result.get("messages", [])
 
-Ayudas al usuario a identificar mantenimientos pendientes o próximos según
-el kilometraje y el historial de su motocicleta.
+    if not mensajes:
+        return "No fue posible generar una respuesta."
 
-ESTADO ACTUAL DE LA MOTOCICLETA:
-Marca: {moto["marca"]}
-Modelo: {moto["modelo"]}
-Kilometraje actual: {moto["kilometraje_actual"]}
+    contenido = mensajes[-1].content
 
-MEMORIA RECIENTE:
-{memoria}
+    if isinstance(contenido, str):
+        return contenido
 
-Dispones de las herramientas consultar_moto, consultar_historial y
-consultar_recomendaciones.
+    if isinstance(contenido, list):
+        partes = []
+        for bloque in contenido:
+            if isinstance(bloque, dict) and bloque.get("type") == "text":
+                partes.append(str(bloque.get("text", "")))
+            elif isinstance(bloque, str):
+                partes.append(bloque)
+        texto = "\n".join(p for p in partes if p).strip()
+        return texto or "No fue posible generar una respuesta."
 
-Usa consultar_moto cuando necesites datos generales de la motocicleta
-(marca, modelo, año, cilindraje o kilometraje).
+    return str(contenido)
 
-Usa consultar_historial cuando el usuario pregunte por mantenimientos
-realizados, fechas o kilometrajes de mantenimientos anteriores.
 
-Usa consultar_recomendaciones cuando el usuario pregunte cada cuánto se
-debe hacer un mantenimiento o cuál es el intervalo técnico recomendado.
+def _detectar_tools_usadas(result: dict) -> list[str]:
+    """Obtiene nombres de Tools solicitadas por el modelo."""
+    usadas: list[str] = []
 
-Para determinar si un mantenimiento está pendiente, compara el
-kilometraje actual y la fecha del último mantenimiento de ese tipo
-(consultar_historial) contra el intervalo recomendado
-(consultar_recomendaciones).
+    for mensaje in result.get("messages", []):
+        tool_calls = getattr(mensaje, "tool_calls", None) or []
 
-Si puedes responder usando el estado o la memoria, responde directamente.
-No inventes información de mantenimientos, de la motocicleta ni de
-intervalos técnicos.
+        for call in tool_calls:
+            nombre = call.get("name")
+            if nombre and nombre not in usadas:
+                usadas.append(nombre)
 
-Restricciones que debes respetar siempre:
-- No realices reparaciones físicas.
-- No registres mantenimientos como realizados sin autorización del usuario.
-- No modifiques ni elimines el historial automáticamente.
-- No programes citas en talleres sin confirmación del usuario.
-- No compartas información personal sin autorización.
-- No reemplaces el diagnóstico de un mecánico profesional.
-
-Sé breve, claro y cordial.
-""".strip()
+    return usadas
 
 
 def responder(
     mensaje_usuario: str,
     moto: Moto,
     memoria: str,
-) -> str:
-    """Genera una respuesta del asistente MantenIA mediante Gemini.
+) -> dict:
+    """Responde mediante Chain o Agent según la naturaleza de la consulta."""
+    router = crear_router_chain()
+    decision = router.invoke({"pregunta": mensaje_usuario})
 
-    Construye el contexto de la conversación y envía el mensaje del
-    usuario al modelo configurado de Gemini. El modelo puede utilizar las
-    herramientas ``consultar_moto``, ``consultar_historial`` y
-    ``consultar_recomendaciones`` cuando la consulta requiere información
-    relacionada con la motocicleta, su historial o los intervalos
-    técnicos de mantenimiento.
+    if decision.ruta == "chain":
+        chain = crear_respuesta_chain()
+        texto = chain.invoke({"pregunta": mensaje_usuario})
 
-    Args:
-        mensaje_usuario: Mensaje enviado por el usuario.
-        moto: Información actual de la motocicleta del usuario.
-        memoria: Representación textual de los mensajes recientes de la
-            conversación.
+        return {
+            "respuesta": texto,
+            "ruta": "Chain",
+            "motivo": decision.motivo,
+            "tools": [],
+        }
 
-    Returns:
-        Respuesta textual generada por Gemini. Si el modelo no devuelve
-        contenido textual, se retorna un mensaje predeterminado.
-    """
-    contexto = construir_contexto(moto, memoria)
+    model = _crear_modelo()
 
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=mensaje_usuario,
-        config=types.GenerateContentConfig(
-            system_instruction=contexto,
-            tools=[consultar_moto, consultar_historial, consultar_recomendaciones],
+    agent = create_agent(
+        model=model,
+        tools=TOOLS,
+        system_prompt=_construir_system_prompt(
+            moto=moto,
+            memoria=memoria,
         ),
     )
 
-    return response.text or "No fue posible generar una respuesta."
+    result = agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": mensaje_usuario,
+                }
+            ]
+        }
+    )
+
+    return {
+        "respuesta": _extraer_texto_final(result),
+        "ruta": "Agent",
+        "motivo": decision.motivo,
+        "tools": _detectar_tools_usadas(result),
+    }

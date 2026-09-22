@@ -1,0 +1,30 @@
+[
+  {
+    "moto_id": "moto_001",
+    "alerta": "Revisión de frenos pendiente según kilometraje",
+    "fecha_limite": "2026-10-05",
+    "estado": "pendiente",
+    "prioridad": "alta"
+  },
+  {
+    "moto_id": "moto_002",
+    "alerta": "Cambio de filtro próximo a vencer",
+    "fecha_limite": "2026-10-20",
+    "estado": "pendiente",
+    "prioridad": "media"
+  },
+  {
+    "moto_id": "moto_003",
+    "alerta": "Primer cambio de aceite recomendado",
+    "fecha_limite": "2026-11-01",
+    "estado": "pendiente",
+    "prioridad": "baja"
+  },
+  {
+    "moto_id": "moto_004",
+    "alerta": "Cambio de aceite vencido según intervalo técnico",
+    "fecha_limite": "2026-09-25",
+    "estado": "pendiente",
+    "prioridad": "alta"
+  }
+]

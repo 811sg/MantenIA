@@ -1,0 +1,32 @@
+[
+  {
+    "moto_id": "moto_001",
+    "documento": "SOAT",
+    "fecha_vencimiento": "2026-12-15",
+    "descripcion": "Seguro Obligatorio de Accidentes de Tránsito vigente."
+  },
+  {
+    "moto_id": "moto_001",
+    "documento": "Revisión Técnico-Mecánica",
+    "fecha_vencimiento": "2026-10-30",
+    "descripcion": "Certificado de emisiones y condiciones mecánicas."
+  },
+  {
+    "moto_id": "moto_002",
+    "documento": "SOAT",
+    "fecha_vencimiento": "2026-09-30",
+    "descripcion": "Seguro Obligatorio de Accidentes de Tránsito próximo a vencer."
+  },
+  {
+    "moto_id": "moto_003",
+    "documento": "SOAT",
+    "fecha_vencimiento": "2027-02-10",
+    "descripcion": "Seguro Obligatorio de Accidentes de Tránsito vigente."
+  },
+  {
+    "moto_id": "moto_004",
+    "documento": "Revisión Técnico-Mecánica",
+    "fecha_vencimiento": "2026-09-28",
+    "descripcion": "Certificado próximo a vencer, requiere renovación pronta."
+  }
+]
