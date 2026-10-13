@@ -1,20 +1,21 @@
-"""Interfaz Streamlit del Asistente MantenIA v2 con LangChain."""
+"""Interfaz Streamlit del Asistente MantenIA v3 con LangGraph."""
 
 import streamlit as st
 
 from config.settings import validar_configuracion
-from core.agent import responder
-from core.state import (
-    agregar_mensaje,
+from core.session import (
     actualizar_estado_moto,
+    agregar_mensaje,
+    diagrama_mermaid,
+    ejecutar_turno,
     inicializar_estado,
-    obtener_memoria,
+    inicializar_sesion,
     registrar_ejecucion,
-    reiniciar_estado,
+    reiniciar_conversacion,
 )
 
 st.set_page_config(
-    page_title="MantenIA v2",
+    page_title="MantenIA v3",
     page_icon="🏍️",
 )
 
@@ -25,11 +26,13 @@ except ValueError as error:
     st.stop()
 
 inicializar_estado()
+inicializar_sesion()
 
-st.title("MantenIA v2")
+st.title("MantenIA v3")
 st.caption("Asistente inteligente de mantenimiento de motocicletas")
 st.write(
-    "Versión con LangChain, Chain de enrutamiento, Agent y múltiples Tools."
+    "Versión con LangGraph: grafo de estados cíclico, nodos especializados, "
+    "ToolNode y memoria con checkpointer."
 )
 
 with st.sidebar:
@@ -41,6 +44,11 @@ with st.sidebar:
     st.write("Kilometraje actual:", moto["kilometraje_actual"])
 
     st.divider()
+    st.subheader("Hilo de conversación")
+    st.caption("Thread ID activo (clave del checkpoint de memoria)")
+    st.code(st.session_state.thread_id, language=None)
+
+    st.divider()
     st.subheader("Última ejecución")
 
     ejecucion = st.session_state.ultima_ejecucion
@@ -48,6 +56,13 @@ with st.sidebar:
 
     if ejecucion["motivo"]:
         st.caption(ejecucion["motivo"])
+
+    if ejecucion["pasos"]:
+        st.write("Nodos recorridos:")
+        st.code(
+            " ➔ ".join(["START", *ejecucion["pasos"], "END"]),
+            language=None,
+        )
 
     if ejecucion["tools"]:
         st.write("Tools utilizadas:")
@@ -58,8 +73,18 @@ with st.sidebar:
 
     st.divider()
 
+    with st.expander("Arquitectura del grafo"):
+        try:
+            diagrama = diagrama_mermaid()
+            if hasattr(st, "mermaid_chart"):
+                st.mermaid_chart(diagrama)
+            else:
+                st.code(diagrama, language="text")
+        except Exception as error:
+            st.caption(f"No se pudo generar el diagrama: {error}")
+
     if st.button("Reiniciar conversación"):
-        reiniciar_estado()
+        reiniciar_conversacion()
         st.rerun()
 
 for mensaje in st.session_state.mensajes:
@@ -76,10 +101,9 @@ if prompt:
     agregar_mensaje("user", prompt)
 
     try:
-        resultado = responder(
+        resultado = ejecutar_turno(
             mensaje_usuario=prompt,
             moto=st.session_state.moto,
-            memoria=obtener_memoria(),
         )
         respuesta = resultado["respuesta"]
         registrar_ejecucion(resultado)
