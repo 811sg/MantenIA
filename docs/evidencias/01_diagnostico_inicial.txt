@@ -1,0 +1,18 @@
+DIAGNÓSTICO INICIAL — MantenIA v3 original (antes de los ajustes)
+Fecha: 2026-10-29 · Método: sondeo manual de Tools y del extractor de moto del código original
+(las Tools se invocaron con .invoke; el parser es copia literal de la lógica original de core/session.py)
+
+consultar_moto('Yamaha MT-03')       -> 0 resultados   (esperado: 1)        [H1]
+consultar_moto('yamaha')             -> 1 resultado
+consultar_alertas('moto_001 frenos') -> 0 resultados   (esperado: 1)        [H1]
+consultar_alertas('revision')        -> 0 resultados   (esperado: 1)        [H2]
+consultar_docs('SOAT moto_001')      -> 0 resultados   (esperado: 1)        [H1]
+consultar_docs('tecnomecanica')      -> 0 resultados   (esperado: 2)        [H2]
+consultar_docs('tecnico-mecanica')   -> 2 resultados
+
+Extractor de moto (marca / modelo / km):
+'Tengo una Yamaha modelo MT-03 con 8500 km'            -> Yamaha / MT-03 / 8500            (correcto)
+'mi moto es modelo 2022 y tiene 8.500 km'              -> modelo '2022' (año como modelo)  [H3]
+'¿cada cuántos km se cambia el aceite? ... 5000 km?'   -> km = 5000 (cifra hipotética)     [H4]
+'tengo 12,5 km de ruta diaria'                         -> km = 5 (decimal mal leído)        [H4]
+'el modelo de mi AKT es NKD 125'                       -> modelo 'DE'                      [H3]

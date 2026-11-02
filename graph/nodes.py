@@ -4,7 +4,6 @@ Cada nodo recibe el estado y devuelve solo las modificaciones a aplicar.
 Aquí no se crean aristas ni se compila el grafo (eso vive en workflow.py).
 """
 
-from functools import lru_cache
 from typing import Literal
 
 from langchain_core.messages import (
@@ -13,11 +12,10 @@ from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
 )
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
-from config.settings import GEMINI_API_KEY, GEMINI_MODEL
+from core import llm_factory
 from graph.state import MantenimientoState
 from prompts.mantenimiento_prompt import (
     AGENT_SYSTEM_TEMPLATE,
@@ -105,14 +103,9 @@ class RutaConsulta(BaseModel):
     motivo: str = Field(description="Justificación breve de la selección.")
 
 
-@lru_cache(maxsize=None)
-def _modelo(temperature: float) -> ChatGoogleGenerativeAI:
-    """Crea (una sola vez por temperatura) el cliente de Gemini."""
-    return ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        api_key=GEMINI_API_KEY,
-        temperature=temperature,
-    )
+def _modelo(temperature: float):
+    """Cliente de Gemini compartido (ver `core/llm_factory.py`)."""
+    return llm_factory.obtener_modelo(temperature)
 
 
 def _registrar_paso(state: MantenimientoState, nombre: str) -> list[str]:

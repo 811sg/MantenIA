@@ -13,7 +13,7 @@ from langgraph.graph.message import add_messages
 class MotoInfo(TypedDict):
     marca: str
     modelo: str
-    kilometraje_actual: str
+    kilometraje_actual: int | str
 
 
 class MantenimientoState(TypedDict):
